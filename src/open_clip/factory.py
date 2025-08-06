@@ -470,8 +470,12 @@ def create_model(
     is_hf_text_model = 'hf_model_name' in model_cfg.get('text_cfg', {})
     if is_timm_model:
         vision_cfg['timm_model_pretrained'] = enable_default_image_weights
+    else:
+        enable_default_image_weights = False  # for accurate logging
     if is_hf_text_model:
         text_cfg['hf_model_pretrained'] = enable_default_text_weights
+    else:
+        enable_default_text_weights = False  # for accurate logging
 
     # Determine model class (CLIP, CustomTextCLIP, CoCa)
     custom_text = model_cfg.pop('custom_text', False) or force_custom_text or is_hf_text_model
@@ -588,6 +592,11 @@ def create_model(
     if output_dict and hasattr(model, "output_dict"):
         # Enable dictionary output if model supports it
         model.output_dict = True
+
+    # If force_image_size was specified and we have a timm model, call set_input_size after loading weights
+    if force_image_size is not None and is_timm_model and hasattr(model.visual, 'set_input_size'):
+        logging.info(f"Calling set_input_size({force_image_size}) on timm vision model.")
+        model.visual.set_input_size(force_image_size)
 
     if jit:
         logging.info("Attempting JIT scripting...")
